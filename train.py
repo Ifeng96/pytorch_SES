@@ -6,13 +6,13 @@ import Frame
 import torch
 from tqdm import tqdm
 
-root_path = ''
+root_path = '/media/hlf/51aa617b-dbbc-4ad1-af81-45cf8dfce172/hlf/data/hyh/allgt/img_gt/out_train_patch1'
 batch_size = 8
 epochs = 100
 
 Dataset = Data.Data(root_path)
-train_loader = torch.utils.DataLoader(
-    Data,
+train_loader = torch.utils.data.DataLoader(
+    Dataset,
     batch_size=batch_size,
     shuffle=True,
     num_workers=4
@@ -25,4 +25,4 @@ for epoch in tqdm(range(epochs)):
         frame.set_input(img, gt)
         loss = frame.optimize()
         if step % 100 == 0:
-            print('[epoch {}] step {}: loss: '.format(epoch+1, step, loss))
+            print('[epoch {}] step {}: loss: {}'.format(epoch+1, step, loss))

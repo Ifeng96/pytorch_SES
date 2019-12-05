@@ -28,7 +28,7 @@ class Basiclayer(nn.Module):
         self.bn1 = nn.BatchNorm2d(out_channel)
         self.conv2 = nn.Conv2d(out_channel, out_channel, 3, 1, 1)
         self.bn2 = nn.BatchNorm2d(out_channel)
-        self.relu = nn.ReLU(in_place=True)
+        self.relu = nn.ReLU(inplace=True)
         self.downsample = downsample
 
     def forward(self, x):
@@ -124,9 +124,9 @@ class Model(nn.Module):
         self.decoder3 = DecoderBlock(channels[1], channels[0], 4)
         self.decoder4 = DecoderBlock(channels[0], channels[0], 3)
 
-        self.lastupsample = nn.ConvTranspose2d(channels[0], 32, 3, 12, 1, 1)
+        self.lastupsample = nn.ConvTranspose2d(channels[0], 32, 3, 2, 1, 1)
         self.lastbasicblock = Basiclayer(32, 32)
-        self.out_to_class = nn.Conv2d(32, num_classes, 3, 1, 1)
+        self.out_to_class = nn.Conv2d(32, 1, 1, 1, 0)
 
     def forward(self, x):
         _, _, h, w = x.size()
@@ -148,4 +148,4 @@ class Model(nn.Module):
         out = self.lastupsample(decoder4)
         out = self.lastbasicblock(out)
         out = self.out_to_class(out)
-        return F.softmax(out, dim=1)
+        return F.sigmoid(out)
