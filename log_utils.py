@@ -39,7 +39,8 @@ def init_logger(filename, level=logging.DEBUG, when="D", backup=7,
     logger = logging.getLogger()
     logger.setLevel(level)
 
-    log_path = ops.join(os.getcwd(), 'logs', filename)
+    # log_path = ops.join(os.getcwd(), 'logs', filename)
+    log_path = filename
     _dir = os.path.dirname(log_path)
     if not os.path.isdir(_dir):
         os.makedirs(_dir)
