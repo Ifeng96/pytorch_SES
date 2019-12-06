@@ -15,6 +15,12 @@ class Frame():
         self.img = img_batch
         self.gt = gt_batch
 
+    def train(self):
+        self.model.train()
+
+    def eval(self):
+        self.model.eval()
+
     def forward(self, volatile=False):
         self.img  = V(self.img.cuda(), volatile=volatile)
         if self.gt is not None:
@@ -27,6 +33,13 @@ class Frame():
         loss = self.loss(self.gt, self.pred)
         loss.backward()
         self.optimizer.step()
+        return loss.item(), self.pred.cpu().data.numpy()
+
+    def val_op(self):
+        self.forward()
+        self.optimizer.zero_grad()
+        self.pred = self.model(self.img)
+        loss = self.loss(self.gt, self.pred)
         return loss.item(), self.pred.cpu().data.numpy()
 
     def load_pretrain(self, pretrained_model):
