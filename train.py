@@ -49,6 +49,8 @@ for epoch in tqdm(range(cfg['epochs'])):
         loss_epoch += loss
         if step % 100 == 0:
             cv2.imwrite(os.path.join(cfg['trainout_path'], 'epoch{}step{}.tif').format(epoch, step), np.uint8(255*np.transpose(pred[0], (1,2,0))))
+            cv2.imwrite(os.path.join(cfg['trainout_path'], 'epoch{}step{}gt.tif').format(epoch, step),
+                        np.uint8(255 * np.transpose(frame.gt.cpu().data.numpy()[0], (1, 2, 0))))
             logger.info('[epoch {}] step {}: loss: {}'.format(epoch+1, step, loss))
     if loss_epoch < best_loss:
         best_loss = loss_epoch
