@@ -27,4 +27,10 @@ class Frame():
         loss = self.loss(self.gt, self.pred)
         loss.backward()
         self.optimizer.step()
-        return loss.item()
+        return loss.item(), self.pred.cpu().data.numpy()
+
+    def load_pretrain(self, pretrained_model):
+        self.model.load_state_dict(torch.load(pretrained_model))
+
+    def save(self, file):
+        torch.save(self.model.state_dict(), file)
