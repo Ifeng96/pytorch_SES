@@ -3,41 +3,27 @@ import Data
 import Loss
 import Frame
 import log_utils
+from Config import cfg
 
 import torch
 
 import os
 import cv2
-import time
 import numpy as np
 from tqdm import tqdm
 
-cfg = {}
-cfg['root_path'] = '/media/hlf/51aa617b-dbbc-4ad1-af81-45cf8dfce172/hlf/data/hyh/allgt/img_gt/out_train_patch1'
-cfg['batch_size'] = 8
-cfg['epochs'] = 100
 # log
-log_path = './log'
-cfg['time_ymdh'] = time.strftime('%y_%m_%d_%H')
-cfg['trainout_path'] = os.path.join(log_path, cfg['time_ymdh'], 'train')
-cfg['valout_path']= os.path.join(log_path, cfg['time_ymdh'], 'val')
-# if not os.path.exists(log_path): os.makedirs(log_path)
-if not os.path.exists(cfg['trainout_path']): os.makedirs(cfg['trainout_path'])
-if not os.path.exists(cfg['valout_path']): os.makedirs(cfg['valout_path'])
-logger = log_utils.init_logger(os.path.join(log_path, cfg['time_ymdh'], 'log'))
+logger = log_utils.init_logger(cfg['logger_path'])
 logger.info(cfg)
-# model
-cfg['model_path'] = os.path.join(log_path, cfg['time_ymdh'], 'model')
-if not os.path.exists(cfg['model_path']): os.makedirs(cfg['model_path'])
 # dataset
-Dataset = Data.Data(cfg['root_path'])
+Dataset = Data.Data(cfg['root_path']+'/train', cfg['loader'])
 train_loader = torch.utils.data.DataLoader(
     Dataset,
     batch_size=cfg['batch_size'],
     shuffle=True,
     num_workers=4
 )
-Dataset_val = Data.Data(cfg['root_path'].replace('train_', 'test_'))
+Dataset_val = Data.Data(cfg['root_path']+'/valid', cfg['loader'])
 val_loader = torch.utils.data.DataLoader(
     Dataset_val,
     batch_size=cfg['batch_size'],
@@ -45,14 +31,13 @@ val_loader = torch.utils.data.DataLoader(
     num_workers=4
 )
 
-
 frame = Frame.Frame(Model.Model, Loss.dice_bce_loss())
 
 best_loss = 1e4
 for epoch in tqdm(range(cfg['epochs'])):
     loss_epoch = 0
     frame.train()
-    for step, (img, gt) in enumerate(iter(train_loader)):
+    for step, (img, gt, _) in enumerate(iter(train_loader)):
         frame.set_input(img, gt)
         loss, pred = frame.optimize()
         loss_epoch += loss
@@ -61,19 +46,20 @@ for epoch in tqdm(range(cfg['epochs'])):
             cv2.imwrite(os.path.join(cfg['trainout_path'], 'epoch{}step{}gt.tif').format(epoch, step),
                         np.uint8(255 * np.transpose(frame.gt.cpu().data.numpy()[0], (1, 2, 0))))
             logger.info('train[epoch {}] step {}: loss: {}'.format(epoch+1, step, loss))
-    frame.eval()
-    loss_val = []
-    for step, (img, gt) in enumerate(iter(val_loader)):
-        frame.set_input(img, gt)
-        loss = frame.val_op()
-        loss_val.append(loss)
-        if step % 100 == 0:
-            cv2.imwrite(os.path.join(cfg['valout_path'], 'epoch{}step{}.tif').format(epoch, step),
-                        np.uint8(255 * np.transpose(pred[0], (1, 2, 0))))
-            cv2.imwrite(os.path.join(cfg['valout_path'], 'epoch{}step{}gt.tif').format(epoch, step),
-                        np.uint8(255 * np.transpose(frame.gt.cpu().data.numpy()[0], (1, 2, 0))))
-            logger.info('val[epoch {}] step {}: loss: {}'.format(epoch + 1, step, loss.mean()))
-
+    with torch.no_grad():
+        frame.eval()
+        loss_val = []
+        for step, (img, gt, _) in enumerate(iter(val_loader)):
+            # torch.no_grad() to avoid cuda out of memory
+            frame.set_input(img, gt)
+            loss,pred_val = frame.val_op()
+            loss_val.append(loss)
+            if step % 100 == 0:
+                cv2.imwrite(os.path.join(cfg['valout_path'], 'epoch{}step{}.tif').format(epoch, step),
+                            np.uint8(255 * np.transpose(pred_val[0], (1, 2, 0))))
+                cv2.imwrite(os.path.join(cfg['valout_path'], 'epoch{}step{}gt.tif').format(epoch, step),
+                            np.uint8(255 * np.transpose(frame.gt.cpu().data.numpy()[0], (1, 2, 0))))
+                logger.info('val[epoch {}] step {}: loss: {}'.format(epoch + 1, step, np.mean(np.array(loss))))
     if loss_epoch < best_loss:
         best_loss = loss_epoch
         frame.save(os.path.join(cfg['model_path'], 'epoch{}loss{}.pth'.format(epoch, best_loss)))
